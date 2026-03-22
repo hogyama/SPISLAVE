@@ -20,15 +20,30 @@ namespace arduino
         namespace spi
         {
             class SPISlave
-            {
+            {   
+                private:
+                    spi_bus_config_t bus_cfg;
+                    int max_size;
                 public: 
+                    // コンストラクタ
+                    SPISlave();
+#if !(IS_S3)
                     bool begin(
-                        int8_t mosi,
-                        int8_t miso, 
-                        int8_t sck, 
-                        int8_t cs, 
-                        int8_t hs_pin);
-
+                        uint8_t spi_bus = HSPI,
+                        int8_t mosi = -1, 
+                        int8_t miso = -1, 
+                        int8_t sck = -1, 
+                        int8_t cs = -1, 
+                        int8_t hs_pin = -1);
+#else
+                    bool begin(
+                        spi_host_device_t host_in = SPI2_HOST,
+                        int8_t mosi = -1,
+                        int8_t miso = -1, 
+                        int8_t sck = -1, 
+                        int8_t cs = -1, 
+                        int8_t hs_pin = -1);
+#endif
                     bool queue(
                         const uint8_t* tx,
                         uint8_t* rx,

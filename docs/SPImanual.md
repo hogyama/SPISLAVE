@@ -116,7 +116,7 @@ typedef struct {
     slave_transaction_cb_t post_trans_cb; // トランザクション完了後に呼ばれるコールバック
 } spi_slave_interface_config_t;
 // (driver/spi_slave.h)
-
+```
 この構造体で指定したclock_speed_hzやmode、spics_io_numなどの情報が、先述の `spi_device_handle_t` 内部にカプセル化される。1つのバスに複数のデバイスを接続する場合、デバイスの数だけこの構造体を定義し、それぞれ `spi_bus_add_device()`を呼び出して個別のハンドルを取得する。
 ### 4.1 `spi_device_interface_config_t`で指定できるフラグ
 |フラグ名|役割と効果|使うシチュエーション|
