@@ -1,0 +1,10 @@
+# ビルドディレクトリを除外（絶対にアップロードしない！）
+build/
+
+# エディタの設定ファイルを除外
+.vscode/
+.idea/
+
+# その他、自動生成される不要なファイル
+sdkconfig.old
+dependencies.lock
