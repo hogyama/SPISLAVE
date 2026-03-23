@@ -84,7 +84,8 @@ spi_device_handle_tは、SPIバスにデバイスを追加する際に、`spi_bu
 spi_device_transmit()関数は、`spi_device_handle_t`を引数として受け取り、そのデバイスとの通信を行うために使用される。これにより、特定のデバイスに対してデータの送受信が可能になる。
 
 ## 4. デバイスのインターフェース設定（spi_device_interface_config_t）
-ハンドル（`spi_device_handle_t`）を取得するためには、デバイスごとの通信ルールを定義する必要がある。そのための構造体が `spi_device_interface_config_t`または`spi_slave_interface_config_t`である。
+ハンドル（`spi_device_handle_t`）を取得するためには、デバイスごとの通信ルールを定義する必要がある。そのための構造体が `spi_device_interface_config_t`である。
+
 マスター用インターフェース設定
 ```
 typedef struct {
@@ -105,6 +106,10 @@ typedef struct {
 } spi_device_interface_config_t;
 (driver/spi_master.h)
 ```
+この構造体で指定したclock_speed_hzやmode、spics_io_numなどの情報が、先述の `spi_device_handle_t` 内部にカプセル化される。1つのバスに複数のデバイスを接続する場合、デバイスの数だけこの構造体を定義し、それぞれ `spi_bus_add_device()`を呼び出して個別のハンドルを取得する。
+
+SPIスレーブ側の通信のルールを決める構造体が`spi_slave_interface_config_t`である。`
+spi_slave_initialize()`に渡し、SPIの初期化ができる。
 スレーブ用インターフェース設定
 ```
 typedef struct {
@@ -117,7 +122,7 @@ typedef struct {
 } spi_slave_interface_config_t;
 // (driver/spi_slave.h)
 ```
-この構造体で指定したclock_speed_hzやmode、spics_io_numなどの情報が、先述の `spi_device_handle_t` 内部にカプセル化される。1つのバスに複数のデバイスを接続する場合、デバイスの数だけこの構造体を定義し、それぞれ `spi_bus_add_device()`を呼び出して個別のハンドルを取得する。
+
 ### 4.1 `spi_device_interface_config_t`で指定できるフラグ
 |フラグ名|役割と効果|使うシチュエーション|
 |:---|:---|:---|
