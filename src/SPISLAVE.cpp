@@ -65,7 +65,7 @@ esp_err_t SPISlave::begin(spi_host_device_t host_in, int8_t mosi, int8_t miso, i
 
     // DMA用メモリ初期化
     memset(this->rx_buf, 0, this->buffer_size);
-    memset(this->rx_buf, 0, this->buffer_size);
+    memset(this->tx_buf, 0, this->buffer_size);
     
     spi_bus_config_t bus_cfg = {};
     bus_cfg.mosi_io_num = mosi;
@@ -80,7 +80,7 @@ esp_err_t SPISlave::begin(spi_host_device_t host_in, int8_t mosi, int8_t miso, i
 
     spi_slave_interface_config_t slave_cfg = {};
     slave_cfg.spics_io_num = cs;
-    slave_cfg.queue_size = DEFALUT_QUEUE_SIZE;
+    slave_cfg.queue_size = DEFAULT_QUEUE_SIZE;
     slave_cfg.post_setup_cb = hssetup;
     slave_cfg.post_trans_cb = hsfree;
 
@@ -92,52 +92,103 @@ esp_err_t SPISlave::begin(spi_host_device_t host_in, int8_t mosi, int8_t miso, i
     }
     return ret;
 }
+/**
+ * @brief SPI通信をキューに追加する関数
+ *  tx: 送信データのポインタ
+ *  size: 送信データのサイズ
+ */
 
-esp_err_t SPISlave::queue(const uint8_t* tx, uint8_t* rx, size_t size){
-    if(!this->is_initialized) return ESP_ERR_INVALID_STATE;
-    if(tx == nullptr || rx == nullptr){
-        return ESP_ERR_NO_MEM;
+esp_err_t SPISlave::queue(const uint8_t* tx, uint32_t size){
+    if(!this->is_initialized){
+        return ESP_ERR_INVALID_STATE;
     }
     // サイズチェック
-    if(size == 0 || size > this->buffer_size){
+    if(size > this->buffer_size){
         return ESP_ERR_INVALID_SIZE;
-    }  
-
-    this->user_rx = rx;
-    memcpy(this->tx_buf, tx, size);
-    
-    spi_slave_transaction_t trans = {};
-    trans.length = size * 8;
-    trans.rx_buffer = this->rx_buf;
-    trans.tx_buffer = this->tx_buf;
-    trans.user = (void*)this;
-
-    esp_err_t ret = spi_slave_queue_trans(this->host, &trans, portMAX_DELAY);
+    }
+    // DMAバッファにコピー
+    if(tx != nullptr){
+        memcpy(this->tx_buf, tx, size);
+    }
+    memset(&this->slave_trans, 0, sizeof(spi_slave_transaction_t));
+    this->slave_trans.length = size * 8; 
+    this->slave_trans.tx_buffer = this->tx_buf;
+    this->slave_trans.rx_buffer = this->rx_buf;
+    this->slave_trans.user = (void*)this;
+    esp_err_t ret = spi_slave_queue_trans(this->host, &this->slave_trans, portMAX_DELAY);
     return ret;
 }
 
+/**
+ * @brief SPI通信の完了を待つ関数
+ *  受信データはユーザーバッファにコピーされないが、受信データのバイトサイズを返す
+ *  timeoutを指定しない場合は、無限に待ち続ける
+ */
+int32_t SPISlave::wait(uint32_t timeout){
+    if(!this->is_initialized){
+        return -1;
+    }
+    TickType_t timeout_ticks = (timeout == portMAX_DELAY) ? portMAX_DELAY : pdMS_TO_TICKS(timeout);
+    spi_slave_transaction_t* trans;
+    esp_err_t ret = spi_slave_get_trans_result(this->host, &trans, timeout_ticks);
+    if(ret == ESP_OK){
+        return (int32_t)(trans->trans_len / 8);
+    }
+    return -1;
+}
+/**
+ * @brief SPI通信の完了を待ち、受信データをユーザーバッファにコピーする関数
+ *  受信データのバイトサイズを返す
+ *  timeoutを指定しない場合は、無限に待ち続ける
+ */
+int32_t SPISlave::wait(uint8_t* rx, uint32_t timeout){
+    if(!this->is_initialized){
+        return -1;
+    }
+    int32_t size = wait(timeout);
+    if(size > 0 && rx != nullptr){
+        memcpy(rx, this->rx_buf, size);
+    }
+    return size;
+}
+/**
+ * @brief 受信データのポインタを取得する関数
+ */
+const uint8_t* SPISlave::get_raw_rx() const{
+    return this->rx_buf;
+}
+
+/**
+ * @brief SPI通信を終了する関数
+ */
 void SPISlave::end(){
     if(this->is_initialized){
         spi_slave_free(this->host);
         this->is_initialized = false;   
     }                                                                                                                                                                                
-    if(this->tx_buf != nullptr){
+    if(this->rx_buf != nullptr){
         heap_caps_free(this->rx_buf);
         this->rx_buf = nullptr;
     }
-    if(this->rx_buf != nullptr){
+    if(this->tx_buf != nullptr){
         heap_caps_free(this->tx_buf);
         this->tx_buf = nullptr;
     }
+    return;
 }
 
+/**
+ * @brief HS信号をセットアップする関数
+ */
 void IRAM_ATTR SPISlave::hssetup(spi_slave_transaction_t *trans){
     SPISlave* me = static_cast<SPISlave*>(trans->user);
     if(me->hs_pin >= 0){
         gpio_set_level((gpio_num_t)me->hs_pin, 1);
     }
 }
-
+/**
+ * @brief HS信号を解放する関数
+ */
 void IRAM_ATTR SPISlave::hsfree(spi_slave_transaction_t *trans) {
     SPISlave* me = static_cast<SPISlave*>(trans->user);
     if (me->hs_pin >= 0) gpio_set_level((gpio_num_t)me->hs_pin, 0);
