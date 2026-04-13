@@ -1,5 +1,4 @@
 #include "SPISLAVE.h"
-SPISLAVE_BEGIN
 
 SPISlave::SPISlave(){};
 
@@ -194,5 +193,3 @@ void IRAM_ATTR SPISlave::hsfree(spi_slave_transaction_t *trans) {
     if (me->hs_pin >= 0) gpio_set_level((gpio_num_t)me->hs_pin, 0);
 
 }
-
-SPISLAVE_END
