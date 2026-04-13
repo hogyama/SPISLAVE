@@ -26,7 +26,7 @@ namespace arduino
             {   
                 private:
                     spi_host_device_t host{SPI2_HOST};
-                    uint8_t hs_pin{-1}; 
+                    int8_t hs_pin{-1}; 
                     uint32_t buffer_size{DEFAULT_BUFFER_SIZE}; 
                     uint8_t* rx_buf{nullptr}; 
                     uint8_t* tx_buf{nullptr}; 
